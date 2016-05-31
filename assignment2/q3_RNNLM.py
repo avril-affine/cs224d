@@ -79,7 +79,11 @@ class RNNLM_Model(LanguageModel):
     (Don't change the variable names)
     """
     ### YOUR CODE HERE
-    raise NotImplementedError
+    self.input_placeholder = tf.placeholder(tf.int32,
+                                            (None, self.config.num_steps))
+    self.labels_placeholder = tf.placeholder(tf.int32,
+                                             (None, self.config.num_steps))
+    self.dropout_placeholder = tf.placeholder(tf.float32)
     ### END YOUR CODE
   
   def add_embedding(self):
@@ -101,7 +105,10 @@ class RNNLM_Model(LanguageModel):
     # The embedding lookup is currently only implemented for the CPU
     with tf.device('/cpu:0'):
       ### YOUR CODE HERE
-      raise NotImplementedError
+      L = tf.get_variable('L', (len(self.vocab), self.config.embed_size))
+      inputs = tf.nn.embedding_lookup(L, self.input_placeholder)
+      inputs = [tf.reshape(step, (self.config.batch_size, self.config.embed_size))
+                for step in tf.split(1, self.config.num_steps, inputs)]
       ### END YOUR CODE
       return inputs
 
@@ -125,7 +132,12 @@ class RNNLM_Model(LanguageModel):
                (batch_size, len(vocab)
     """
     ### YOUR CODE HERE
-    raise NotImplementedError
+    U = tf.get_variable('U', 
+                        (self.config.hidden_size, len(self.vocab)))
+    b_2 = tf.get_variable('b2', (len(self.vocab),))
+    outputs = []
+    for h in rnn_outputs:
+        outputs.append(tf.matmul(h, U) + b_2)
     ### END YOUR CODE
     return outputs
 
@@ -140,7 +152,9 @@ class RNNLM_Model(LanguageModel):
       loss: A 0-d tensor (scalar)
     """
     ### YOUR CODE HERE
-    raise NotImplementedError
+    targets = [tf.reshape(self.labels_placeholder, (-1,))]
+    weights = [tf.ones((self.config.batch_size * self.config.num_steps,))]
+    loss = sequence_loss([output], targets, weights)
     ### END YOUR CODE
     return loss
 
@@ -164,7 +178,7 @@ class RNNLM_Model(LanguageModel):
       train_op: The Op for training.
     """
     ### YOUR CODE HERE
-    raise NotImplementedError
+    train_op = tf.train.AdamOptimizer(self.config.lr).minimize(loss)
     ### END YOUR CODE
     return train_op
   
@@ -226,7 +240,28 @@ class RNNLM_Model(LanguageModel):
                a tensor of shape (batch_size, hidden_size)
     """
     ### YOUR CODE HERE
-    raise NotImplementedError
+    with tf.variable_scope('rnn') as scope:
+        self.initial_state = tf.zeros((self.config.batch_size,
+                                       self.config.hidden_size))
+        inputs = [tf.nn.dropout(x, self.dropout_placeholder) for x in inputs]
+
+        H = tf.get_variable('H', (self.config.hidden_size,
+                                  self.config.hidden_size))
+        I = tf.get_variable('I', (self.config.embed_size,
+                                  self.config.hidden_size))
+        b_1 = tf.get_variable('b1', (self.config.hidden_size,))
+
+        rnn_outputs = [tf.matmul(self.initial_state, H) + \
+                       tf.matmul(inputs[0], I) + b_1]
+
+        scope.reuse_variables()
+        for e_t in inputs[1:]:
+            rnn_outputs.append(tf.matmul(self.initial_state, H) + \
+                               tf.matmul(e_t, I) + b_1)
+
+        rnn_outputs = [tf.nn.dropout(x, self.dropout_placeholder)
+                       for x in rnn_outputs]
+        self.final_state = rnn_outputs[-1]
     ### END YOUR CODE
     return rnn_outputs
 
