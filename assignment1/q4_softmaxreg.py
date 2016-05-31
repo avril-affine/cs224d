@@ -58,9 +58,9 @@ def softmaxRegression(features, labels, weights, regularization = 0.0, nopredict
     
     ### YOUR CODE HERE: compute the gradients and predictions
     dprob = prob.copy()
-    dprob[:, labels] -= 1
+    dprob[range(N), labels] -= 1
     dprob /= N
-    grad = np.dot(features, dprob) + regularization * weights
+    grad = np.dot(features.T, dprob) + regularization * weights
     pred = np.argmax(prob, axis=1)
     ### END YOUR CODE
     
