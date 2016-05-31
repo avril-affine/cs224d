@@ -251,17 +251,17 @@ class RNNLM_Model(LanguageModel):
                                   self.config.hidden_size))
         b_1 = tf.get_variable('b1', (self.config.hidden_size,))
 
-        rnn_outputs = [tf.matmul(self.initial_state, H) + \
-                       tf.matmul(inputs[0], I) + b_1]
+        state = tf.matmul(self.initial_state, H)
+        rnn_outputs = [state + tf.matmul(inputs[0], I) + b_1]
 
         scope.reuse_variables()
         for e_t in inputs[1:]:
-            rnn_outputs.append(tf.matmul(self.initial_state, H) + \
-                               tf.matmul(e_t, I) + b_1)
+            state = tf.matmul(state, H)
+            rnn_outputs.append(state + tf.matmul(e_t, I) + b_1)
 
         rnn_outputs = [tf.nn.dropout(x, self.dropout_placeholder)
                        for x in rnn_outputs]
-        self.final_state = rnn_outputs[-1]
+        self.final_state = state
     ### END YOUR CODE
     return rnn_outputs
 
@@ -319,7 +319,11 @@ def generate_text(session, model, config, starting_text='<eos>',
   tokens = [model.vocab.encode(word) for word in starting_text.split()]
   for i in xrange(stop_length):
     ### YOUR CODE HERE
-    raise NotImplementedError
+    feed_dict = {model.input_placeholder: tokens,
+                 model.initial_state: state,
+                 model.dropout_placeholder: 1.}
+    state, y_pred = session.run([model.final_state, model.predictions[-1]],
+                                feed_dict=feed_dict)
     ### END YOUR CODE
     next_word_idx = sample(y_pred[0], temperature=temp)
     tokens.append(next_word_idx)
