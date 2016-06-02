@@ -159,7 +159,14 @@ class RNN_Model():
         loss = None
         # YOUR CODE HERE
         loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, labels)
-        loss = tf.nn.l2_loss(loss)
+        loss = tf.reduce_mean(loss)
+        with tf.variable_scope('Composition'):
+            W1 = tf.get_variable('W1', (2 * embed_size, embed_size))
+        with tf.variable_scope('Projection'):
+            U = tf.get_variable('U', (embed_size, output_size))
+        loss += 0.5 * self.config.l2 * tf.nn.l2_loss(W1)
+        loss += 0.5 * self.config.l2 * tf.nn.l2_loss(W2)
+
         # END YOUR CODE
         return loss
 
